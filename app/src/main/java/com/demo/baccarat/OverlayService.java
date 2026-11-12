@@ -52,7 +52,9 @@ public class OverlayService extends Service {
     private WindowManager wm;
     private LinearLayout root;
     private WindowManager.LayoutParams lp;
-    private TextView tTitle, tSub, tHist, tLearn, tSim, tRes, tClear, tExit;
+    private TextView tTitle, tSub, tHist, tLearn, tSim, tRes, tClear, tExit, tHistory;
+    private HistoryPanel panel;
+    private volatile boolean panelOpen = false;
     private Button btn;
     private MediaProjection projection;
     private ImageReader reader;
@@ -159,6 +161,7 @@ public class OverlayService extends Service {
     private void scanOnce() {
         Image img = reader.acquireLatestImage();
         if (img == null) return; // màn hình chưa có khung mới
+        if (panelOpen) { img.close(); return; } // đang mở bảng lịch sử: tạm dừng đọc để khỏi đọc nhầm các chấm của chính bảng đó
         int W, H;
         try {
             W = img.getWidth();
@@ -252,13 +255,16 @@ public class OverlayService extends Service {
         tSim.setVisibility(View.GONE);
         tRes = text(11, false, 0xFFFFD34D);
         tRes.setVisibility(View.GONE);
+        tHistory = text(11, false, 0xFFFFD34D);
+        tHistory.setPaintFlags(tHistory.getPaintFlags() | Paint.UNDERLINE_TEXT_FLAG);
+        tHistory.setText("📚 Xem các bàn đã học");
         tClear = text(10, false, 0x80FFFFFF);
         tClear.setPaintFlags(tClear.getPaintFlags() | Paint.UNDERLINE_TEXT_FLAG);
         tClear.setText("Xóa dữ liệu đã học");
         tExit = text(10, false, 0x80FFFFFF);
         tExit.setPaintFlags(tExit.getPaintFlags() | Paint.UNDERLINE_TEXT_FLAG);
         tExit.setText("Thoát trợ lý");
-        for (TextView t : new TextView[]{tTitle, tSub, tHist, tLearn, tRes, tSim, tClear, tExit}) {
+        for (TextView t : new TextView[]{tTitle, tSub, tHist, tLearn, tRes, tSim, tHistory, tClear, tExit}) {
             LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
             p.topMargin = dp(3);
             bubble.addView(t, p);
@@ -340,9 +346,57 @@ public class OverlayService extends Service {
                 });
             }
         });
+        tHistory.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { openHistory(); }
+        });
         tSim.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { runSimulation(); }
         });
+    }
+
+    // ---------- xem lại các bàn đã học ----------
+    private void openHistory() {
+        if (panel != null || tracker == null) return;
+        panel = new HistoryPanel(this, new HistoryPanel.Actions() {
+            @Override public void close() { closeHistory(); }
+            @Override public void delete(final int idx) {
+                vh.post(new Runnable() {
+                    @Override public void run() {
+                        tracker.deleteTable(idx);
+                        mh.post(new Runnable() { @Override public void run() { render(); loadHistory(); } });
+                    }
+                });
+            }
+        });
+        WindowManager.LayoutParams plp = new WindowManager.LayoutParams((int) (scrW * 0.94f), (int) (scrH * 0.72f),
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+                PixelFormat.TRANSLUCENT);
+        plp.gravity = Gravity.CENTER;
+        panelOpen = true;
+        wm.addView(panel.view(), plp);
+        loadHistory();
+    }
+
+    private void loadHistory() {
+        if (panel == null) return;
+        panel.showLoading();
+        final List<String> tb = tracker.tablesSnapshot();
+        final int cur = tracker.currentIndex();
+        new Thread(new Runnable() {
+            @Override public void run() {
+                final Analysis.Report r = Analysis.run(tb, cur);
+                mh.post(new Runnable() { @Override public void run() { if (panel != null) panel.showReport(r); } });
+            }
+        }).start();
+    }
+
+    private void closeHistory() {
+        panelOpen = false;
+        if (panel != null) {
+            try { wm.removeView(panel.view()); } catch (Exception ignored) { }
+            panel = null;
+        }
     }
 
     private void updateRect() {
@@ -413,6 +467,7 @@ public class OverlayService extends Service {
     public void onDestroy() {
         watching = false;
         if (vh != null) vh.removeCallbacksAndMessages(null);
+        closeHistory();
         try { if (root != null) wm.removeView(root); } catch (Exception ignored) { }
         try { if (vd != null) vd.release(); } catch (Exception ignored) { }
         try { if (reader != null) reader.close(); } catch (Exception ignored) { }

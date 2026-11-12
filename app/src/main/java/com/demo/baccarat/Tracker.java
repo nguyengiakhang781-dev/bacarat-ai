@@ -242,4 +242,19 @@ public final class Tracker {
     }
 
     public synchronized boolean hasTable() { return state != null; }
+
+    /** Bản sao danh sách các bàn đã lưu (bàn đang chơi nằm ở vị trí currentIndex()). */
+    public synchronized List<String> tablesSnapshot() { return new ArrayList<>(tables); }
+
+    /** Vị trí bàn đang chơi trong danh sách, hoặc -1. */
+    public synchronized int currentIndex() { return curIdx; }
+
+    /** Xóa một bàn đã kết thúc khỏi bộ nhớ học. Không xóa bàn đang chơi. */
+    public synchronized void deleteTable(int idx) {
+        if (idx < 0 || idx >= tables.size() || idx == curIdx) return;
+        tables.remove(idx);
+        if (curIdx > idx) curIdx--;
+        save();
+        relearn();
+    }
 }

@@ -19,6 +19,17 @@ CÁCH DÙNG TRÊN ĐIỆN THOẠI
    3. Mở game baccarat, bấm "Bắt đầu xem màn hình" ở trợ lý nổi (kéo avatar để đổi chỗ).
    4. Dừng: bấm "Dừng". Tắt hẳn: bấm "Thoát trợ lý".
 
+TÍNH NĂNG XEM LẠI CÁC BÀN ĐÃ HỌC (bản 1.1)
+   - Trong trợ lý nổi bấm "📚 Xem các bàn đã học".
+   - Hiện bàn hiện tại và từng bàn cũ: bảng cầu vẽ lại, số Cái/Con/Hòa, chuỗi bệt dài nhất, kiểm định ngẫu nhiên.
+   - "Đọc lại từng ván": tool đoán lại từng ván của bàn đó rồi so với kết quả thật.
+     Mỗi bàn chỉ được dùng kiến thức học từ các bàn trước nó, nên con số là kết quả thật, không bị "ăn gian".
+   - Bấm vào tiêu đề của một bàn để mở/đóng; có nút xóa từng bàn khỏi bộ nhớ học.
+   - Khi mở bảng này, trợ lý tạm ngừng đọc màn hình; đóng lại thì đọc tiếp.
+
+CẬP NHẬT TỪ BẢN CŨ: trên GitHub, vào repo > Add file > Upload files, kéo thư mục "app" và file README.txt
+   mới vào (ghi đè), bấm Commit. Workflow sẽ tự chạy lại; tải APK mới ở tab Actions như lần trước.
+
 GHI CHÚ
    - Giữ điện thoại ở chế độ dọc. Xoay ngang thì dừng rồi bật lại trợ lý.
    - Dự đoán chỉ mang tính demo: mỗi ván baccarat là ngẫu nhiên độc lập, tỉ lệ đúng thật quanh 50%.
