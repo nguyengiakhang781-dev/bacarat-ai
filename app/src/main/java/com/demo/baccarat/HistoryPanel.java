@@ -8,6 +8,7 @@ import android.graphics.drawable.GradientDrawable;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.style.ForegroundColorSpan;
+import android.view.Gravity;
 import android.view.View;
 import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
@@ -19,11 +20,14 @@ final class HistoryPanel {
     interface Actions {
         void close();
         void delete(int idx);
+        void deep();
+        void list();
     }
 
     private final Context ctx;
     private final Actions act;
     private final LinearLayout root, body;
+    private TextView deepBtn, backBtn;
 
     HistoryPanel(Context c, Actions a) {
         ctx = c;
@@ -31,9 +35,9 @@ final class HistoryPanel {
         root = new LinearLayout(c);
         root.setOrientation(LinearLayout.VERTICAL);
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(0xF2101322);
-        bg.setCornerRadius(dp(16));
-        bg.setStroke(dp(1), 0x33FFFFFF);
+        bg.setColor(0xF80D0E1E);
+        bg.setCornerRadius(dp(22));
+        bg.setStroke(dp(1), 0x2EFFFFFF);
         root.setBackground(bg);
         root.setPadding(dp(12), dp(10), dp(12), dp(10));
 
@@ -41,10 +45,32 @@ final class HistoryPanel {
         head.setOrientation(LinearLayout.HORIZONTAL);
         TextView title = tv("📚 Các bàn đã học", 16, true, Color.WHITE);
         head.addView(title, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-        TextView close = tv("✕ Đóng", 14, true, 0xFFFFD34D);
+        TextView close = tv("✕ Đóng", 13, true, 0xFFFFD34D);
+        GradientDrawable cb = new GradientDrawable();
+        cb.setColor(0x1AFFFFFF);
+        cb.setCornerRadius(dp(12));
+        close.setBackground(cb);
+        close.setPadding(dp(11), dp(6), dp(11), dp(6));
         close.setOnClickListener(v -> act.close());
         head.addView(close);
         root.addView(head);
+
+        LinearLayout tb = new LinearLayout(c);
+        tb.setOrientation(LinearLayout.HORIZONTAL);
+        deepBtn = tv("🔬 Phân tích sâu", 13, true, Color.WHITE);
+        backBtn = tv("‹ Danh sách các bàn", 13, true, Color.WHITE);
+        for (TextView b : new TextView[]{deepBtn, backBtn}) {
+            GradientDrawable g = new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, new int[]{0x598B7BFF, 0x4DFF6B9D});
+            g.setCornerRadius(dp(14));
+            b.setBackground(g);
+            b.setPadding(dp(12), dp(9), dp(12), dp(9));
+            b.setGravity(Gravity.CENTER);
+            tb.addView(b, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        }
+        backBtn.setVisibility(View.GONE);
+        deepBtn.setOnClickListener(v -> { deepBtn.setVisibility(View.GONE); backBtn.setVisibility(View.VISIBLE); act.deep(); });
+        backBtn.setOnClickListener(v -> { backBtn.setVisibility(View.GONE); deepBtn.setVisibility(View.VISIBLE); act.list(); });
+        root.addView(tb, lp(10));
 
         ScrollView sv = new ScrollView(c);
         body = new LinearLayout(c);
@@ -57,7 +83,7 @@ final class HistoryPanel {
 
     private int dp(int v) { return (int) (v * ctx.getResources().getDisplayMetrics().density + 0.5f); }
 
-    private TextView tv(String text, int sp, boolean bold, int color) {
+    private TextView tv(String text, float sp, boolean bold, int color) {
         TextView t = new TextView(ctx);
         t.setText(text);
         t.setTextSize(sp);
@@ -72,14 +98,45 @@ final class HistoryPanel {
         return p;
     }
 
-    void showLoading() {
+    void showLoading() { showLoading("Đang đọc lại các bàn…"); }
+
+    void showLoading(String msg) {
         body.removeAllViews();
-        body.addView(tv("Đang đọc lại các bàn…", 13, false, 0xCCFFFFFF), lp(10));
+        body.addView(tv(msg, 13, false, 0xCCFFFFFF), lp(10));
+    }
+
+    /** Hiển thị kết quả "Phân tích sâu" (các phần đã được Deep.sections() soạn sẵn thành chữ). */
+    void showDeep(Deep.Result D) {
+        body.removeAllViews();
+        for (Deep.Sec s : Deep.sections(D)) {
+            LinearLayout box = new LinearLayout(ctx);
+            box.setOrientation(LinearLayout.VERTICAL);
+            GradientDrawable bg = new GradientDrawable();
+            bg.setColor(0x10FFFFFF);
+            bg.setCornerRadius(dp(14));
+            if ("green".equals(s.tone)) bg.setStroke(dp(1), 0x8C3ECF72);
+            else if ("amber".equals(s.tone)) bg.setStroke(dp(1), 0x99FFD34D);
+            box.setBackground(bg);
+            box.setPadding(dp(11), dp(9), dp(11), dp(9));
+            box.addView(tv(s.title, 12.5f, true, Color.WHITE));
+            for (String[] l : s.lines) {
+                int col = "dim".equals(l[1]) ? 0x80FFFFFF : "warn".equals(l[1]) ? 0xFFFFB36B : "ok".equals(l[1]) ? 0xFF7BE3A0 : 0xD9FFFFFF;
+                TextView t = tv(l[0], "dim".equals(l[1]) ? 10.5f : 11f, false, col);
+                box.addView(t, lp(4));
+            }
+            body.addView(box, lp(9));
+        }
     }
 
     void showReport(Analysis.Report r) {
         body.removeAllViews();
-        body.addView(tv(Analysis.summary(r), 12, false, 0xDDFFFFFF), lp(8));
+        TextView sm = tv(Analysis.summary(r), 12, false, 0xDDFFFFFF);
+        GradientDrawable smb = new GradientDrawable();
+        smb.setColor(0x10FFFFFF);
+        smb.setCornerRadius(dp(14));
+        sm.setBackground(smb);
+        sm.setPadding(dp(11), dp(9), dp(11), dp(9));
+        body.addView(sm, lp(10));
         if (r.current != null) addCard("Bàn hiện tại", r.current, true);
         for (int i = r.past.size() - 1; i >= 0; i--) addCard("Bàn #" + (i + 1), r.past.get(i), false);
         if (r.past.isEmpty() && r.current == null)
@@ -90,8 +147,9 @@ final class HistoryPanel {
         LinearLayout card = new LinearLayout(ctx);
         card.setOrientation(LinearLayout.VERTICAL);
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(0x1AFFFFFF);
-        bg.setCornerRadius(dp(10));
+        bg.setColor(0x14FFFFFF);
+        bg.setCornerRadius(dp(14));
+        if (t.current) bg.setStroke(dp(1), 0x8C3ECF72);
         card.setBackground(bg);
         card.setPadding(dp(10), dp(8), dp(10), dp(8));
 

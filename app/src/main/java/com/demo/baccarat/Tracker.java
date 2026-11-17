@@ -10,11 +10,18 @@ import java.util.List;
 public final class Tracker {
     public interface Store { String load(); void save(String data); }
 
-    /** Màu: 0 trắng, 1 đỏ (Cái/sai), 2 xanh dương (Con), 3 xanh lá (đúng), 4 vàng (thông báo). */
+    /** Ảnh chụp trạng thái cho giao diện. phase: idle | scan | analyze | pred | result | notice. */
     public static final class Ui {
-        public String title = "Sẵn sàng", sub = "Bấm bắt đầu để mình xem bảng cầu", learn = "";
-        public int color = 0;
-        public boolean simVisible = false;
+        public int ver;
+        public String phase = "idle", title = "Sẵn sàng", sub = "Bấm bắt đầu để mình xem bảng cầu", learn = "";
+        public String res = "", last = "";           // res: win | lose | neutral (khi phase = result)
+        public Predictor.Pred pred;                  // khi phase = pred
+        public int predN;                            // số thứ tự ván được dự đoán
+        public long analyzeMs;                       // thời gian "đang phân tích" (để chạy vòng tiến trình)
+        public int streak, accOk, accN;
+        public boolean simVisible;
+        public int evtId;
+        public String evtType = "";                  // win | lose | new | switch
         public final List<Boolean> hist = new ArrayList<>();
     }
 
@@ -34,8 +41,12 @@ public final class Tracker {
     private int act;
     private int okN, totN, streak;
     private final List<Boolean> hist = new ArrayList<>();
-    private String title = "Sẵn sàng", sub = "Bấm bắt đầu để mình xem bảng cầu", learnTxt = "";
-    private int color;
+    private int ver, evtId;
+    private String evtType = "";
+    private String phase = "idle", title = "Sẵn sàng", sub = "Bấm bắt đầu để mình xem bảng cầu", res = "", last = "", learnTxt = "";
+    private Predictor.Pred pred;
+    private int predN;
+    private long analyzeMs;
     private boolean simVisible;
 
     public Tracker(Store store) {
@@ -48,12 +59,18 @@ public final class Tracker {
     // ---------- giao diện ----------
     public synchronized Ui ui() {
         Ui u = new Ui();
-        u.title = title; u.sub = sub; u.color = color; u.learn = learnTxt; u.simVisible = simVisible;
+        u.ver = ver; u.phase = phase; u.title = title; u.sub = sub; u.res = res; u.last = last; u.pred = pred; u.predN = predN;
+        u.analyzeMs = analyzeMs; u.streak = streak; u.accOk = okN; u.accN = totN; u.learn = learnTxt; u.simVisible = simVisible;
+        u.evtId = evtId; u.evtType = evtType;
         u.hist.addAll(hist.subList(Math.max(0, hist.size() - 14), hist.size()));
         return u;
     }
 
-    private void say(String t, String s, int c) { title = t; sub = s; color = c; }
+    private void say(String ph, String t, String s) {
+        ver++; phase = ph; title = t; sub = s; res = ""; last = ""; pred = null; analyzeMs = 0;
+    }
+
+    private void fire(String type) { evtId++; evtType = type; }
 
     private String scoreTxt() { return totN > 0 ? "đúng " + okN + "/" + totN + " (" + Math.round(okN * 100.0 / totN) + "%)" : ""; }
 
@@ -116,16 +133,22 @@ public final class Tracker {
         }
     }
 
+    /** Gọi định kỳ (vd: 4 lần/giây) để các pha theo thời gian chạy đúng giờ. */
+    public synchronized void tickTime(long now) { advance(now); }
+
     private void analyze(long now, int ms) {
-        say("Đang phân tích…", state.seq.length() + " ván trên bảng cầu", 0);
+        say("analyze", "Đang phân tích…", state.seq.length() + " ván trên bảng cầu");
+        analyzeMs = ms;
         schedule(now + ms, 2);
     }
 
     private void showPred() {
         Predictor.Pred p = predictor.predict(state.seq);
         state.pred = p == null ? 0 : p.v;
-        if (p == null) say("Đang thu thập…", state.seq.length() + " ván đã đọc · cần ≥ 8 ván", 0);
-        else say("Ván tới: " + name(p.v), p.why + " · ván #" + (state.seq.length() + 1) + (totN > 0 ? " · " + scoreTxt() : ""), p.v == 'B' ? 1 : 2);
+        if (p == null) { say("analyze", "Đang thu thập…", state.seq.length() + " ván đã đọc · cần ≥ 8 ván"); return; }
+        predN = state.seq.length() + 1;
+        say("pred", "Ván tới: " + name(p.v), "Dự đoán cho ván #" + predN);
+        pred = p;
     }
 
     private void beginTable(String n, long now) {
@@ -137,6 +160,7 @@ public final class Tracker {
         if (tables.size() > CAP) { tables.remove(0); curIdx--; }
         save(); updL();
         simVisible = true;
+        fire("new");
         analyze(now, 2000);
     }
 
@@ -144,7 +168,8 @@ public final class Tracker {
         archive(); resetStats();
         state = null;
         pendingSeq = n;
-        say("Đã đổi bàn", why + " · đã lưu bàn cũ để học", 4);
+        say("notice", "Đã đổi bàn", why + " · đã lưu bàn cũ để học");
+        fire("switch");
         schedule(now + 1200, 3);
     }
 
@@ -152,7 +177,8 @@ public final class Tracker {
         lastSeq = state.seq; lastWin = state.win;
         archive();
         state = null; gone = true; actAt = -1;
-        say("Đã rời bàn", "Đã lưu bàn cũ để học · chờ bàn mới", 4);
+        say("notice", "Đã rời bàn", "Đã lưu bàn cũ để học · chờ bàn mới");
+        fire("switch");
     }
 
     private void onSeq(String n, long now) {
@@ -203,8 +229,11 @@ public final class Tracker {
         String head = verdict < 0
                 ? "Ván #" + N + ": " + (r == 'X' ? "không rõ (hổ/rồng)" : name(r)) + (r == 'T' ? " (không tính)" : "")
                 : (verdict == 1 ? "✓ ĐOÁN ĐÚNG" : "✗ ĐOÁN SAI") + " · " + name(r);
-        String tail = "Ván #" + N + " xong · ván mới bắt đầu" + (totN > 0 ? " · " + scoreTxt() + (streak > 1 ? " · chuỗi đúng " + streak : "") : "");
-        say(head, tail, verdict < 0 ? (r == 'B' ? 1 : r == 'P' ? 2 : r == 'T' ? 3 : 0) : (verdict == 1 ? 3 : 1));
+        String tail = "Ván #" + N + " xong · ván mới bắt đầu" + (streak > 1 ? " · chuỗi đúng " + streak : "");
+        say("result", head, tail);
+        res = verdict < 0 ? "neutral" : verdict == 1 ? "win" : "lose";
+        last = String.valueOf(r);
+        if (verdict >= 0) fire(verdict == 1 ? "win" : "lose");
         schedule(now + 1400, 1);
     }
 
@@ -219,7 +248,7 @@ public final class Tracker {
             miss++;
             if (state != null && miss >= 10 && actAt < 0) onGone();
             else if (state == null && actAt < 0 && !gone)
-                say("Đang tìm bảng cầu…", "Thấy " + beads + " chấm (cỡ " + Math.round(beadSize) + "px) · ảnh " + w + "×" + h + " · hãy để bảng cầu hiện rõ", 0);
+                say("scan", "Đang tìm bảng cầu…", "Thấy " + beads + " chấm (cỡ " + Math.round(beadSize) + "px) · ảnh " + w + "×" + h + " · hãy để bảng cầu hiện rõ");
             return;
         }
         miss = 0;
@@ -231,14 +260,15 @@ public final class Tracker {
     public synchronized void stop() {
         archive();
         state = null; gone = false; actAt = -1; act = 0; simVisible = false; miss = 0; cnt = 0; lastRaw = "";
-        say("Đã dừng", "Bấm bắt đầu để xem lại", 0);
+        say("idle", "Đã dừng", "Bấm bắt đầu để xem lại");
     }
 
     /** Khi người dùng bấm "Bắt đầu". */
     public synchronized void start() {
         state = null; gone = false; actAt = -1; act = 0; miss = 0; cnt = 0; lastRaw = ""; lastSeq = ""; lastWin = "";
-        curIdx = -1; resetStats();
-        say("Đang tìm bảng cầu…", "Mình đang xem màn hình", 0);
+        curIdx = -1; resetStats(); simVisible = false;
+        say("scan", "Đang tìm bảng cầu…", "Mình đang xem màn hình");
+        updL();
     }
 
     public synchronized boolean hasTable() { return state != null; }

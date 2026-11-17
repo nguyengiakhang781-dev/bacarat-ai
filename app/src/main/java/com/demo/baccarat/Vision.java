@@ -19,6 +19,10 @@ public final class Vision {
     public static final class Read {
         public final String seq;
         public final double x0, y0, x1, y1, size;
+        // thông tin lưới (để kiểm tra ô chưa nhận ra): hàng trên cùng, bước hàng/cột, cột cuối và hàng cuối
+        double topY, pitch, colPitch, lastColX;
+        int lastRow;
+        final List<double[]> unknown = new ArrayList<>(); // {vị trí trong seq, x, y} của các ô 'X'
         Read(String seq, double x0, double y0, double x1, double y1, double size) {
             this.seq = seq; this.x0 = x0; this.y0 = y0; this.x1 = x1; this.y1 = y1; this.size = size;
         }
@@ -57,7 +61,7 @@ public final class Vision {
         h *= 60;
         if (h <= 18 || h >= 340) return 1;
         if (h >= 190 && h <= 250) return 2;
-        if (h >= 85 && h <= 170) return 3;
+        if (h >= 60 && h <= 185) return 3;
         return 0;
     }
 
@@ -270,6 +274,8 @@ public final class Vision {
         // chấm nhiều màu (hổ/rồng đặc biệt) không phân loại được -> ghi 'X' để giữ đúng vị trí ô trong lưới
         List<Col> cols = colsOf(best, size);
         StringBuilder seq = new StringBuilder();
+        List<double[]> unk = new ArrayList<>();
+        int lastMr = 0;
         for (int ci = 0; ci < cols.size(); ci++) {
             char[] slot = new char[ROWS];
             int mr = 0;
@@ -280,14 +286,94 @@ public final class Vision {
                 if (r > mr) mr = r;
             }
             int top = ci < cols.size() - 1 ? ROWS - 1 : mr;
-            for (int r = 0; r <= top; r++) seq.append(slot[r] == 0 ? 'X' : slot[r]);
+            lastMr = mr;
+            for (int r = 0; r <= top; r++) {
+                if (slot[r] == 0) unk.add(new double[]{seq.length(), cols.get(ci).mx, y0g + r * pitch});
+                seq.append(slot[r] == 0 ? 'X' : slot[r]);
+            }
         }
+        List<Double> cd = new ArrayList<>();
+        for (int i = 1; i < cols.size(); i++) cd.add(cols.get(i).mx - cols.get(i - 1).mx);
+        Collections.sort(cd);
         double x0 = 1e9, y0 = 1e9, x1 = -1, y1 = -1;
         for (Blob b : best) {
             x0 = Math.min(x0, b.x - b.s / 2); y0 = Math.min(y0, b.y - b.s / 2);
             x1 = Math.max(x1, b.x + b.s / 2); y1 = Math.max(y1, b.y + b.s / 2);
         }
-        return new Read(seq.toString(), x0, y0, x1, y1, size);
+        Read rd = new Read(seq.toString(), x0, y0, x1, y1, size);
+        rd.topY = y0g; rd.pitch = pitch; rd.lastRow = lastMr; rd.lastColX = cols.get(cols.size() - 1).mx;
+        rd.colPitch = cd.isEmpty() ? pitch : cd.get(cd.size() >> 1);
+        rd.unknown.addAll(unk);
+        return rd;
+    }
+
+    // ---------- nhận diện thêm các ô mà bước dò chấm bỏ sót (vd: chấm Hòa dạng vòng rỗng / màu lệch) ----------
+    /** Phân loại điểm ảnh theo ngưỡng nới lỏng: 1 đỏ, 2 xanh dương, 3 xanh lá, 0 khác. */
+    private static int cls2(int r, int g, int b) {
+        int mx = Math.max(r, Math.max(g, b)), mn = Math.min(r, Math.min(g, b));
+        if (mx < 70 || (mx - mn) < 0.3 * mx) return 0;
+        int d = mx - mn;
+        double h;
+        if (mx == r) h = (((double) (g - b) / d) + 6) % 6;
+        else if (mx == g) h = (double) (b - r) / d + 2;
+        else h = (double) (r - g) / d + 4;
+        h *= 60;
+        if (h <= 20 || h >= 335) return 1;
+        if (h >= 190 && h <= 250) return 2;
+        if (h >= 60 && h <= 185) return 3;
+        return 0;
+    }
+
+    private static boolean inMask(int[] m, double x, double y) { return m != null && x >= m[0] && x < m[2] && y >= m[1] && y < m[3]; }
+
+    /** 0 = ô trống; 'B'/'P'/'T' = chấm thuần một màu; 'X' = có chấm nhưng nhiều màu/không rõ. */
+    private static char classifyCell(int[] px, int W, int H, double cx, double cy, double size) {
+        int rad = (int) Math.round(size * 0.5);
+        int total = 0, colored = 0, nb = 0, np = 0, nt = 0;
+        int ox = (int) Math.round(cx), oy = (int) Math.round(cy);
+        for (int dy = -rad; dy <= rad; dy++)
+            for (int dx = -rad; dx <= rad; dx++) {
+                if (dx * dx + dy * dy > rad * rad) continue;
+                int x = ox + dx, y = oy + dy;
+                if (x < 0 || y < 0 || x >= W || y >= H) return 0;
+                total++;
+                int p = px[y * W + x], r = (p >> 16) & 255, g = (p >> 8) & 255, b = p & 255;
+                int mx = Math.max(r, Math.max(g, b)), mn = Math.min(r, Math.min(g, b));
+                if (mx - mn < 40) continue; // trắng / xám / đen: không tính
+                colored++;
+                int c = cls2(r, g, b);
+                if (c == 1) nb++; else if (c == 2) np++; else if (c == 3) nt++;
+            }
+        if (total == 0 || colored < 0.25 * total) return 0;
+        int best = Math.max(nb, Math.max(np, nt));
+        if (best >= 0.55 * colored) return best == nt ? 'T' : best == nb ? 'B' : 'P';
+        return 'X';
+    }
+
+    /**
+     * Sau khi đọc xong: (1) thử phân loại lại các ô 'X' theo màu thật của ô;
+     * (2) kiểm tra ô kế tiếp trong lưới — chấm mới nhất ở cuối bảng mà dò chấm bỏ sót sẽ không để lại dấu vết gì.
+     */
+    public Read refine(Read r, int[] px, int W, int H, int[] mask) {
+        if (r == null) return null;
+        StringBuilder s = new StringBuilder(r.seq);
+        List<double[]> unk = new ArrayList<>();
+        for (double[] u : r.unknown) {
+            char c = inMask(mask, u[1], u[2]) ? 0 : classifyCell(px, W, H, u[1], u[2], r.size);
+            if (c != 0 && c != 'X') s.setCharAt((int) u[0], c); else unk.add(u);
+        }
+        int nr = r.lastRow + 1;
+        double nx = r.lastColX, ny = r.topY + nr * r.pitch;
+        if (nr >= ROWS) { nr = 0; nx = r.lastColX + r.colPitch; ny = r.topY; }
+        char c = inMask(mask, nx, ny) ? 0 : classifyCell(px, W, H, nx, ny, r.size);
+        if (c != 0) {
+            if (c == 'X') unk.add(new double[]{s.length(), nx, ny});
+            s.append(c);
+        }
+        Read o = new Read(s.toString(), r.x0, r.y0, r.x1, r.y1, r.size);
+        o.topY = r.topY; o.pitch = r.pitch; o.colPitch = r.colPitch; o.lastColX = r.lastColX; o.lastRow = r.lastRow;
+        o.unknown.addAll(unk);
+        return o;
     }
 
     /**

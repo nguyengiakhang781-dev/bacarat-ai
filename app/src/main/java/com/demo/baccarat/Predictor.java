@@ -10,8 +10,12 @@ public final class Predictor {
 
     public static final class Pred {
         public final char v;
-        public final String why;
-        Pred(char v, String why) { this.v = v; this.why = why; }
+        public final String why, name;
+        public final int same, total, lean;
+        public final boolean weak;
+        Pred(char v, String why, String name, int same, int total, int lean, boolean weak) {
+            this.v = v; this.why = why; this.name = name; this.same = same; this.total = total; this.lean = lean; this.weak = weak;
+        }
     }
 
     /** Dữ liệu học từ các bàn đã kết thúc. */
@@ -163,6 +167,28 @@ public final class Predictor {
         };
     }
 
+    public static final class Score { public String name; public int h, n; }
+
+    /** Chấm điểm từng phương án cổ điển (không dùng dữ liệu đã học) trên tập các bàn: walk-forward từng ván. */
+    public List<Score> scoreStrategies(List<String> tables) {
+        cur = null;
+        List<Integer> base = new ArrayList<>();
+        for (int k = 0; k < strats.length; k++) if (!names[k].startsWith("Đã học")) base.add(k);
+        List<Score> res = new ArrayList<>();
+        for (int k : base) { Score s = new Score(); s.name = names[k]; res.add(s); }
+        for (String raw : tables) {
+            String s = strip(raw);
+            for (int i = 6; i < s.length(); i++) {
+                String pre = s.substring(0, i);
+                for (int j = 0; j < base.size(); j++) {
+                    char c = strats[base.get(j)].f(pre);
+                    if (c != 0) { res.get(j).n++; if (c == s.charAt(i)) res.get(j).h++; }
+                }
+            }
+        }
+        return res;
+    }
+
     /** Bỏ ván Hòa (T) và ô không rõ (X). */
     public static String strip(String seq) { return seq.replace("T", "").replace("X", ""); }
 
@@ -242,7 +268,7 @@ public final class Predictor {
         if (lean < 0.04) {
             char v = major(10).f(s);
             if (v == 0) v = last(s);
-            return new Pred(v, "Chưa có tín hiệu rõ · theo xu hướng");
+            return new Pred(v, "Chưa có tín hiệu rõ · theo xu hướng", "Chưa có tín hiệu rõ", 0, actN, 50, true);
         }
         char v = pb > 0.5 ? 'B' : 'P';
         int bestK = -1, same = 0;
@@ -252,6 +278,7 @@ public final class Predictor {
             if (bestK < 0 || score[1][k] > score[1][bestK]) bestK = k;
         }
         long lean100 = Math.round((v == 'B' ? pb : 1 - pb) * 100);
-        return new Pred(v, names[bestK] + " · " + same + "/" + actN + " đồng thuận · nghiêng " + lean100 + "%");
+        return new Pred(v, names[bestK] + " · " + same + "/" + actN + " đồng thuận · nghiêng " + lean100 + "%",
+                names[bestK], same, actN, (int) lean100, false);
     }
 }

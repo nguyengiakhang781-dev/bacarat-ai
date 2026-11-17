@@ -19,6 +19,21 @@ CÁCH DÙNG TRÊN ĐIỆN THOẠI
    3. Mở game baccarat, bấm "Bắt đầu xem màn hình" ở trợ lý nổi (kéo avatar để đổi chỗ).
    4. Dừng: bấm "Dừng". Tắt hẳn: bấm "Thoát trợ lý".
 
+BẢN 1.3: PHÂN TÍCH SÂU (trong bảng "📚 Xem các bàn đã học" bấm "🔬 Phân tích sâu")
+   - Xác suất thật mỗi ván (Cái 45,86% · Con 44,62% · Hòa 9,52%) và kỳ vọng âm của từng cửa cược.
+   - Kiểm định ngẫu nhiên có hiệu chỉnh khi thử nhiều phương án; bảng chấm điểm từng phương án cầu.
+   - Biểu đồ hiệu chỉnh: mức "nghiêng" của mô hình thực tế đúng bao nhiêu %.
+   - Nhóm đối chứng bằng dữ liệu ngẫu nhiên thật; mô phỏng rủi ro vốn.
+   - Thẻ dự đoán không còn ghi "nghiêng 89%" (dễ hiểu nhầm là xác suất) mà ghi xác suất thật mỗi ván.
+
+BẢN 1.2: GIAO DIỆN MỚI + SỬA LỖI VÁN HÒA
+   - Giao diện mới: thẻ tối bo tròn, nhân vật bồng bềnh, vòng sáng quay khi tìm bảng cầu, vòng tiến trình khi phân tích,
+     nút CÁI (đỏ)/CON (xanh) có vệt sáng, thanh "đồng thuận" (ví dụ 6/9), chuỗi chấm đúng/sai, pháo giấy khi đoán đúng,
+     nhân vật lắc khi đoán sai. Kéo avatar/tiêu đề để di chuyển; chạm avatar để thu nhỏ/mở rộng.
+   - Sửa lỗi không đọc được ván Hòa: nới dải màu xanh lá (xanh chanh -> xanh ngọc) và kiểm tra thêm các ô trong lưới
+     mà bước dò chấm bỏ sót (chấm Hòa dạng vòng rỗng, màu lệch, hoặc ở ô mới nhất cuối bảng).
+   - Ván Hòa không tính vào đúng/sai; chấm nhiều màu đặc biệt (hổ/rồng) vẫn ghi là "không rõ".
+
 TÍNH NĂNG XEM LẠI CÁC BÀN ĐÃ HỌC (bản 1.1)
    - Trong trợ lý nổi bấm "📚 Xem các bàn đã học".
    - Hiện bàn hiện tại và từng bàn cũ: bảng cầu vẽ lại, số Cái/Con/Hòa, chuỗi bệt dài nhất, kiểm định ngẫu nhiên.

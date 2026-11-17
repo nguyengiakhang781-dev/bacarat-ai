@@ -19,6 +19,7 @@ public final class Analysis {
         public Stats st;
         public int evalN, okLearn, okPlain, baseB;
         public String marks = "";     // '1' đoán đúng, '0' đoán sai (theo từng ván, bản "có học")
+        public final List<int[]> pts = new ArrayList<>(); // {độ nghiêng, đúng(1/0), đoán Cái(1/0)} cho bản "có học"
         public boolean current;
     }
 
@@ -63,6 +64,7 @@ public final class Analysis {
             if (a == null || b == null) continue;
             t.evalN++;
             if (a.v == r) { t.okLearn++; marks.append('1'); } else marks.append('0');
+            t.pts.add(new int[]{a.lean, a.v == r ? 1 : 0, a.v == 'B' ? 1 : 0});
             if (b.v == r) t.okPlain++;
             if (r == 'B') t.baseB++;
         }
