@@ -18,7 +18,7 @@ final class BurstView extends View {
 
     BurstView(Context c) {
         super(c);
-        d = c.getResources().getDisplayMetrics().density;
+        d = Theme.d(c);
         setClickable(false);
     }
 
@@ -27,7 +27,7 @@ final class BurstView extends View {
         java.util.Random r = new java.util.Random();
         for (int i = 0; i < N; i++) {
             ang[i] = (float) (r.nextFloat() * Math.PI * 2);
-            dist[i] = (54f + r.nextFloat() * 66f) * d;
+            dist[i] = (34f + r.nextFloat() * 44f) * d;
             size[i] = (6f + r.nextFloat() * 7f) * d;
             rotv[i] = r.nextFloat() * 540f - 270f;
             delay[i] = r.nextFloat() * 90f;

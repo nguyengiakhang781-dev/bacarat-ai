@@ -36,7 +36,7 @@ public final class Tracker {
     private State state;
     private boolean gone;
     private String lastSeq = "", lastWin = "", lastRaw = "", pendingSeq = "";
-    private int miss, cnt;
+    private int miss, cnt, mism;
     private long actAt = -1;
     private int act;
     private int okN, totN, streak;
@@ -154,7 +154,7 @@ public final class Tracker {
     private void beginTable(String n, long now) {
         state = new State();
         state.seq = n; state.win = n;
-        gone = false; miss = 0;
+        gone = false; miss = 0; mism = 0;
         tables.add(n);
         curIdx = tables.size() - 1;
         if (tables.size() > CAP) { tables.remove(0); curIdx--; }
@@ -196,6 +196,10 @@ public final class Tracker {
                 analyze(now, 1500);
                 return;
             }
+            if (n.length() < 8) {
+                say("scan", "Đang tìm bảng cầu…", "Mới thấy " + n.length() + " ván trên bảng cầu · chờ đủ 8 ván để bắt đầu");
+                return;
+            }
             beginTable(n, now);
             return;
         }
@@ -207,12 +211,17 @@ public final class Tracker {
             else if (w.startsWith(n) && n.length() >= w.length() - 2) return;
             else al = null;
         } else al = Vision.align(w, n);
-        if (al == null) { switchTable(n, "Bảng cầu khác hẳn", now); return; }
+        if (al == null) {
+            if (++mism >= 3) { mism = 0; switchTable(n, "Bảng cầu khác hẳn", now); }
+            return;
+        }
+        mism = 0;
         state.win = n;
         String add = al.add;
         if (add.isEmpty()) return;
         int verdict = -1; // -1 chưa chấm, 0 sai, 1 đúng
-        for (int i = 0; i < add.length(); i++) {
+        boolean judge = add.length() <= 2;
+        for (int i = 0; judge && i < add.length(); i++) {
             char r = add.charAt(i);
             if (r == 'T' || r == 'X' || state.pred == 0) continue;
             boolean ok = r == state.pred;
@@ -229,7 +238,8 @@ public final class Tracker {
         String head = verdict < 0
                 ? "Ván #" + N + ": " + (r == 'X' ? "không rõ (hổ/rồng)" : name(r)) + (r == 'T' ? " (không tính)" : "")
                 : (verdict == 1 ? "✓ ĐOÁN ĐÚNG" : "✗ ĐOÁN SAI") + " · " + name(r);
-        String tail = "Ván #" + N + " xong · ván mới bắt đầu" + (streak > 1 ? " · chuỗi đúng " + streak : "");
+        String tail = judge ? "Ván #" + N + " xong · ván mới bắt đầu" + (streak > 1 ? " · chuỗi đúng " + streak : "")
+                : "Bỏ lỡ " + add.length() + " ván (không chấm đúng/sai) · ván mới bắt đầu";
         say("result", head, tail);
         res = verdict < 0 ? "neutral" : verdict == 1 ? "win" : "lose";
         last = String.valueOf(r);
@@ -265,7 +275,7 @@ public final class Tracker {
 
     /** Khi người dùng bấm "Bắt đầu". */
     public synchronized void start() {
-        state = null; gone = false; actAt = -1; act = 0; miss = 0; cnt = 0; lastRaw = ""; lastSeq = ""; lastWin = "";
+        state = null; gone = false; actAt = -1; act = 0; miss = 0; cnt = 0; mism = 0; lastRaw = ""; lastSeq = ""; lastWin = "";
         curIdx = -1; resetStats(); simVisible = false;
         say("scan", "Đang tìm bảng cầu…", "Mình đang xem màn hình");
         updL();

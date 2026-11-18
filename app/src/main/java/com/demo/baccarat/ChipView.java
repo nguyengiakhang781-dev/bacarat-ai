@@ -41,7 +41,7 @@ final class ChipView extends View {
 
     ChipView(Context c) {
         super(c);
-        d = c.getResources().getDisplayMetrics().density;
+        d = Theme.d(c);
         txt.setTextAlign(Paint.Align.CENTER); txt.setTextSize(26f * d); txt.setTypeface(Typeface.DEFAULT_BOLD); txt.setColor(0xFFFFFFFF);
         txt.setLetterSpacing(0.03f);
     }

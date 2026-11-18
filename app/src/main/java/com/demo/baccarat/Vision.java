@@ -237,13 +237,23 @@ public final class Vision {
         List<List<Blob>> groups = new ArrayList<>();
         for (Map.Entry<Integer, List<Blob>> e : g.entrySet()) groups.add(e.getValue());
         Collections.sort(groups, (p, q) -> q.size() - p.size());
-        List<Blob> best = groups.get(0);
+        // chỉ giữ các nhóm trông giống bảng cầu: ≥ 3 chấm và có ít nhất một cột gồm ≥ 2 chấm thẳng hàng dọc
+        List<List<Blob>> valid = new ArrayList<>();
+        for (List<Blob> gr : groups) {
+            if (gr.size() < 3) continue;
+            double sz = 0;
+            for (Blob b : gr) sz += b.s;
+            sz /= gr.size();
+            for (Col c : colsOf(gr, sz)) if (c.items.size() >= 2) { valid.add(gr); break; }
+        }
+        if (valid.isEmpty()) return null;
+        List<Blob> best = valid.get(0);
         if (hint != null) {
-            for (List<Blob> gr : groups) {
-                if (gr.size() < 3) continue;
+            // ưu tiên nhóm gần vị trí bảng cầu lần trước, nhưng chỉ khi nó không nhỏ hơn một nửa nhóm lớn nhất
+            for (List<Blob> gr : valid) {
                 boolean near = false;
                 for (Blob b : gr) if (Math.hypot(b.x - hint[0], b.y - hint[1]) < 3 * b.s + hint[2]) { near = true; break; }
-                if (near) { best = gr; break; }
+                if (near && gr.size() * 2 >= best.size()) { best = gr; break; }
             }
         }
         if (best.size() < 3) return null;
@@ -326,6 +336,24 @@ public final class Vision {
 
     private static boolean inMask(int[] m, double x, double y) { return m != null && x >= m[0] && x < m[2] && y >= m[1] && y < m[3]; }
 
+    /** Ô kế tiếp có phải một chấm Hòa (xanh lá, dạng đặc hoặc vòng rỗng) không? Điều kiện chặt để không tạo "ván ma". */
+    private static boolean isTieCell(int[] px, int W, int H, double cx, double cy, double size) {
+        int rad = (int) Math.round(size * 0.5), ox = (int) Math.round(cx), oy = (int) Math.round(cy);
+        int total = 0, colored = 0, nt = 0;
+        for (int dy = -rad; dy <= rad; dy++)
+            for (int dx = -rad; dx <= rad; dx++) {
+                if (dx * dx + dy * dy > rad * rad) continue;
+                int x = ox + dx, y = oy + dy;
+                if (x < 0 || y < 0 || x >= W || y >= H) return false;
+                total++;
+                int p = px[y * W + x], r = (p >> 16) & 255, g = (p >> 8) & 255, b = p & 255;
+                if (Math.max(r, Math.max(g, b)) - Math.min(r, Math.min(g, b)) < 40) continue;
+                colored++;
+                if (cls2(r, g, b) == 3) nt++;
+            }
+        return total > 0 && colored >= 0.30 * total && nt >= 0.70 * colored;
+    }
+
     /** 0 = ô trống; 'B'/'P'/'T' = chấm thuần một màu; 'X' = có chấm nhưng nhiều màu/không rõ. */
     private static char classifyCell(int[] px, int W, int H, double cx, double cy, double size) {
         int rad = (int) Math.round(size * 0.5);
@@ -365,11 +393,7 @@ public final class Vision {
         int nr = r.lastRow + 1;
         double nx = r.lastColX, ny = r.topY + nr * r.pitch;
         if (nr >= ROWS) { nr = 0; nx = r.lastColX + r.colPitch; ny = r.topY; }
-        char c = inMask(mask, nx, ny) ? 0 : classifyCell(px, W, H, nx, ny, r.size);
-        if (c != 0) {
-            if (c == 'X') unk.add(new double[]{s.length(), nx, ny});
-            s.append(c);
-        }
+        if (!inMask(mask, nx, ny) && isTieCell(px, W, H, nx, ny, r.size)) s.append('T');
         Read o = new Read(s.toString(), r.x0, r.y0, r.x1, r.y1, r.size);
         o.topY = r.topY; o.pitch = r.pitch; o.colPitch = r.colPitch; o.lastColX = r.lastColX; o.lastRow = r.lastRow;
         o.unknown.addAll(unk);

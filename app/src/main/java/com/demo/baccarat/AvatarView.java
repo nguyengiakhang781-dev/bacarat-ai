@@ -42,7 +42,7 @@ final class AvatarView extends View {
 
     AvatarView(Context c) {
         super(c);
-        d = c.getResources().getDisplayMetrics().density;
+        d = Theme.d(c);
         setLayerType(LAYER_TYPE_HARDWARE, null);
         track.setStyle(Paint.Style.STROKE); track.setStrokeWidth(3.5f * d); track.setColor(0x24FFFFFF);
         prog.setStyle(Paint.Style.STROKE); prog.setStrokeWidth(4f * d); prog.setStrokeCap(Paint.Cap.ROUND);

@@ -48,14 +48,14 @@ public class OverlayService extends Service {
     private WindowManager wm;
     private FrameLayout root;
     private WindowManager.LayoutParams lp;
-    private LinearLayout card, head, predRow, menuBox;
-    private GradientDrawable cardBg;
+    private LinearLayout card, head, predRow, menuBox, mini;
+    private GradientDrawable cardBg, miniBg;
     private AvatarView avatar;
     private BurstView burst;
     private ChipView chip;
     private SegView seg;
     private StripView strip;
-    private TextView tTitle, tSub, tWhy, tAcc, tSimRes, tLearn;
+    private TextView tTitle, tSub, tWhy, tAcc, tSimRes, tLearn, tMini, tMiniSub;
     private Button btnGo, btnHist, btnSim, btnMore;
     private HistoryPanel panel;
     private MediaProjection projection;
@@ -81,6 +81,8 @@ public class OverlayService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+        Theme.scale = 0.8f;
+        Theme.fscale = 0.9f;
         wm = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
         mh = new Handler(Looper.getMainLooper());
         vt = new HandlerThread("bca-vision");
@@ -125,7 +127,11 @@ public class OverlayService extends Service {
         else startForeground(1, n);
     }
 
-    private int dp(float v) { return (int) (v * getResources().getDisplayMetrics().density + 0.5f); }
+    /** Kích thước theo giao diện đã thu nhỏ. */
+    private int dp(float v) { return (int) (v * getResources().getDisplayMetrics().density * Theme.scale + 0.5f); }
+
+    /** Kích thước thật (không thu nhỏ): dùng cho nút bấm để đủ lớn bấm bằng ngón tay. */
+    private int dpr(float v) { return (int) (v * getResources().getDisplayMetrics().density + 0.5f); }
 
     // ---------- quay màn hình ----------
     private void setupCapture() {
@@ -220,6 +226,7 @@ public class OverlayService extends Service {
         btnGo.getBackground().setAlpha(110);
         tracker.start();
         lastKey = "";
+        setMinimized(true);
         render();
         vd.setSurface(reader.getSurface());
         vh.post(loop);
@@ -233,6 +240,7 @@ public class OverlayService extends Service {
         try { vd.setSurface(null); } catch (Exception ignored) { }
         btnGo.setText("▶ Bắt đầu xem màn hình");
         btnGo.getBackground().setAlpha(255);
+        setMinimized(false);
         vh.post(new Runnable() {
             @Override public void run() {
                 tracker.stop();
@@ -244,7 +252,7 @@ public class OverlayService extends Service {
     // ---------- giao diện nổi ----------
     private TextView tv(float sp, boolean bold, int color) {
         TextView t = new TextView(this);
-        t.setTextSize(sp);
+        t.setTextSize(sp * Theme.fscale);
         t.setTextColor(color);
         if (bold) t.setTypeface(null, Typeface.BOLD);
         return t;
@@ -264,12 +272,12 @@ public class OverlayService extends Service {
         Button b = new Button(this);
         flat(b);
         b.setText(text);
-        b.setTextSize(16);
+        b.setTextSize(15);
         b.setAllCaps(false);
         b.setPadding(0, 0, 0, 0);
         GradientDrawable g = new GradientDrawable();
         g.setColor(0x14FFFFFF);
-        g.setCornerRadius(dp(14));
+        g.setCornerRadius(dpr(14));
         b.setBackground(g);
         return b;
     }
@@ -292,32 +300,28 @@ public class OverlayService extends Service {
     }
 
     private void buildOverlay() {
-        final int cardW = Math.min(dp(320), scrW - dp(30));
+        final int cardW = Math.min(dp(300), scrW - dpr(24));
         root = new FrameLayout(this);
         root.setClipChildren(false);
-        root.setClipToPadding(false);
-        root.setPadding(0, dp(28), dp(14), 0);
 
         card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         cardBg = new GradientDrawable(GradientDrawable.Orientation.TL_BR, new int[]{0xF51E203E, 0xF70D0E1E});
-        cardBg.setCornerRadius(dp(24));
-        cardBg.setStroke(dp(1.5f), strokeColor);
+        cardBg.setCornerRadius(dp(22));
+        cardBg.setStroke(dpr(1.5f), strokeColor);
         card.setBackground(cardBg);
-        card.setPadding(dp(16), dp(16), dp(16), dp(14));
-        FrameLayout.LayoutParams cp = new FrameLayout.LayoutParams(cardW, FrameLayout.LayoutParams.WRAP_CONTENT);
-        cp.topMargin = dp(36);
-        root.addView(card, cp);
+        card.setPadding(dp(14), dp(14), dp(14), dp(12));
+        root.addView(card, new FrameLayout.LayoutParams(cardW, FrameLayout.LayoutParams.WRAP_CONTENT));
 
         head = new LinearLayout(this);
         head.setOrientation(LinearLayout.VERTICAL);
-        head.setPadding(0, 0, dp(92), 0);
-        head.setMinimumHeight(dp(58));
+        head.setPadding(0, 0, dp(70), 0);
+        head.setMinimumHeight(dp(56));
         tTitle = tv(18, true, Color.WHITE);
         tTitle.setText("Sẵn sàng");
         tSub = tv(11.5f, false, 0xA8FFFFFF);
         LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        sp.topMargin = dp(5);
+        sp.topMargin = dp(4);
         head.addView(tTitle);
         head.addView(tSub, sp);
         card.addView(head);
@@ -327,30 +331,30 @@ public class OverlayService extends Service {
         predRow.setGravity(Gravity.CENTER_VERTICAL);
         predRow.setVisibility(View.GONE);
         chip = new ChipView(this);
-        predRow.addView(chip, new LinearLayout.LayoutParams(dp(116), dp(52)));
+        predRow.addView(chip, new LinearLayout.LayoutParams(dp(110), dp(50)));
         LinearLayout agree = new LinearLayout(this);
         agree.setOrientation(LinearLayout.VERTICAL);
         seg = new SegView(this);
         tWhy = tv(10.5f, false, 0x9EFFFFFF);
         agree.addView(seg, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(6)));
         LinearLayout.LayoutParams wp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        wp.topMargin = dp(6);
+        wp.topMargin = dp(5);
         agree.addView(tWhy, wp);
         LinearLayout.LayoutParams ap = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-        ap.leftMargin = dp(12);
+        ap.leftMargin = dp(10);
         predRow.addView(agree, ap);
         LinearLayout.LayoutParams pp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        pp.topMargin = dp(12);
+        pp.topMargin = dp(10);
         card.addView(predRow, pp);
 
         strip = new StripView(this);
         strip.setVisibility(View.GONE);
         LinearLayout.LayoutParams stp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(14));
-        stp.topMargin = dp(12);
+        stp.topMargin = dp(10);
         card.addView(strip, stp);
         tAcc = tv(10.5f, false, 0x8CFFFFFF);
         LinearLayout.LayoutParams acp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        acp.topMargin = dp(6);
+        acp.topMargin = dp(5);
         card.addView(tAcc, acp);
 
         LinearLayout actions = new LinearLayout(this);
@@ -362,22 +366,22 @@ public class OverlayService extends Service {
         btnGo.setTypeface(null, Typeface.BOLD);
         btnGo.setAllCaps(false);
         btnGo.setMaxLines(1);
-        btnGo.setPadding(dp(8), 0, dp(8), 0);
+        btnGo.setPadding(dp(6), 0, dp(6), 0);
         btnGo.setAutoSizeTextTypeUniformWithConfiguration(9, 13, 1, TypedValue.COMPLEX_UNIT_SP);
         GradientDrawable gb = new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, new int[]{0xFFFF6B9D, 0xFF7B61FF});
-        gb.setCornerRadius(dp(20));
+        gb.setCornerRadius(dpr(21));
         btnGo.setBackground(gb);
-        actions.addView(btnGo, new LinearLayout.LayoutParams(0, dp(40), 1f));
+        actions.addView(btnGo, new LinearLayout.LayoutParams(0, dpr(42), 1f));
         btnHist = iconButton("📚");
         btnSim = iconButton("🧪");
         btnMore = iconButton("⋯");
         for (Button b : new Button[]{btnHist, btnSim, btnMore}) {
-            LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(dp(37), dp(40));
-            ip.leftMargin = dp(7);
+            LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(dpr(38), dpr(42));
+            ip.leftMargin = dp(6);
             actions.addView(b, ip);
         }
         LinearLayout.LayoutParams acl = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        acl.topMargin = dp(12);
+        acl.topMargin = dp(10);
         card.addView(actions, acl);
 
         menuBox = new LinearLayout(this);
@@ -387,7 +391,7 @@ public class OverlayService extends Service {
         mg.setColor(0xF7121328);
         mg.setCornerRadius(dp(14));
         menuBox.setBackground(mg);
-        TextView mMin = menuItem("Thu nhỏ về avatar"), mClr = menuItem("Xóa dữ liệu đã học"), mExit = menuItem("Thoát trợ lý");
+        TextView mMin = menuItem("Thu nhỏ về thanh gọn"), mClr = menuItem("Xóa dữ liệu đã học"), mExit = menuItem("Thoát trợ lý");
         menuBox.addView(mMin);
         menuBox.addView(mClr);
         menuBox.addView(mExit);
@@ -401,19 +405,40 @@ public class OverlayService extends Service {
         sg.setColor(0x1AFFD34D);
         sg.setCornerRadius(dp(12));
         tSimRes.setBackground(sg);
-        tSimRes.setPadding(dp(10), dp(8), dp(10), dp(8));
+        tSimRes.setPadding(dp(9), dp(7), dp(9), dp(7));
         LinearLayout.LayoutParams srp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        srp.topMargin = dp(10);
+        srp.topMargin = dp(8);
         card.addView(tSimRes, srp);
 
-        tLearn = tv(10.5f, false, 0x80FFFFFF);
+        tLearn = tv(10, false, 0x80FFFFFF);
         LinearLayout.LayoutParams lnp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        lnp.topMargin = dp(10);
+        lnp.topMargin = dp(8);
         card.addView(tLearn, lnp);
 
+        // thanh gọn khi thu nhỏ: chữ CÁI/CON lớn + trạng thái, nằm cạnh avatar
+        mini = new LinearLayout(this);
+        mini.setOrientation(LinearLayout.VERTICAL);
+        mini.setGravity(Gravity.CENTER_VERTICAL);
+        miniBg = new GradientDrawable();
+        miniBg.setColor(0xF2121328);
+        miniBg.setCornerRadius(dp(16));
+        miniBg.setStroke(dpr(1.5f), strokeColor);
+        mini.setBackground(miniBg);
+        mini.setPadding(dp(12), dp(4), dp(40), dp(4));
+        tMini = tv(17, true, Color.WHITE);
+        tMiniSub = tv(9.5f, false, 0x99FFFFFF);
+        mini.addView(tMini);
+        mini.addView(tMiniSub);
+        mini.setVisibility(View.GONE);
+        FrameLayout.LayoutParams mip = new FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, dp(46), Gravity.TOP | Gravity.START);
+        mip.topMargin = dp(8);
+        mip.rightMargin = dp(8);
+        root.addView(mini, mip);
+
         avatar = new AvatarView(this);
-        FrameLayout.LayoutParams avp = new FrameLayout.LayoutParams(dp(88), dp(88), Gravity.TOP | Gravity.END);
-        avp.rightMargin = dp(16);
+        FrameLayout.LayoutParams avp = new FrameLayout.LayoutParams(dp(62), dp(62), Gravity.TOP | Gravity.END);
+        avp.topMargin = dp(6);
+        avp.rightMargin = dp(6);
         root.addView(avatar, avp);
         burst = new BurstView(this);
         root.addView(burst, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
@@ -424,13 +449,14 @@ public class OverlayService extends Service {
                         | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
                 PixelFormat.TRANSLUCENT);
         lp.gravity = Gravity.TOP | Gravity.END;
-        lp.x = dp(4);
-        lp.y = dp(110);
+        lp.x = dpr(8);
+        lp.y = dpr(150);
         wm.addView(root, lp);
         root.post(new Runnable() { @Override public void run() { updateRect(); } });
 
         attachDrag(avatar, true);
         attachDrag(head, false);
+        attachDrag(mini, true);
         pressFeedback(btnGo);
         pressFeedback(btnHist);
         pressFeedback(btnSim);
@@ -475,8 +501,8 @@ public class OverlayService extends Service {
                         float dx = e.getRawX() - s[0], dy = e.getRawY() - s[1];
                         if (s[4] == 0 && Math.hypot(dx, dy) < dp(6)) return true;
                         s[4] = 1;
-                        lp.x = (int) Math.max(0, Math.min(scrW - dp(60), s[2] - dx));
-                        lp.y = (int) Math.max(0, Math.min(scrH - dp(100), s[3] + dy));
+                        lp.x = (int) Math.max(0, Math.min(scrW - root.getWidth(), s[2] - dx));
+                        lp.y = (int) Math.max(0, Math.min(scrH - root.getHeight(), s[3] + dy));
                         wm.updateViewLayout(root, lp);
                         updateRect();
                         return true;
@@ -495,6 +521,11 @@ public class OverlayService extends Service {
         minimized = m;
         menuBox.setVisibility(View.GONE);
         card.setVisibility(m ? View.GONE : View.VISIBLE);
+        mini.setVisibility(m ? View.VISIBLE : View.GONE);
+        FrameLayout.LayoutParams avp = (FrameLayout.LayoutParams) avatar.getLayoutParams();
+        avp.topMargin = m ? 0 : dp(6);
+        avp.rightMargin = m ? 0 : dp(6);
+        avatar.setLayoutParams(avp);
         if (m) closeHistory();
         avatar.play(2);
         lastKey = "";
@@ -517,7 +548,7 @@ public class OverlayService extends Service {
         final android.animation.ValueAnimator a = android.animation.ValueAnimator.ofObject(new android.animation.ArgbEvaluator(), from, color);
         a.setDuration(250);
         a.addUpdateListener(new android.animation.ValueAnimator.AnimatorUpdateListener() {
-            @Override public void onAnimationUpdate(android.animation.ValueAnimator va) { cardBg.setStroke(dp(1.5f), (Integer) va.getAnimatedValue()); }
+            @Override public void onAnimationUpdate(android.animation.ValueAnimator va) { cardBg.setStroke(dpr(1.5f), (Integer) va.getAnimatedValue()); miniBg.setStroke(dpr(1.5f), (Integer) va.getAnimatedValue()); }
         });
         a.start();
     }
@@ -549,7 +580,8 @@ public class OverlayService extends Service {
             predRow.setVisibility(View.GONE);
         }
         lastTone = tone;
-        avatar.setMini(minimized && showPred ? u.pred.v : (char) 0);
+        avatar.setMini((char) 0);
+        updateMini(u, showPred);
         strip.setData(u.hist, u.streak);
         tAcc.setText(u.accN > 0 ? "Đúng " + u.accOk + "/" + u.accN + " (" + Math.round(u.accOk * 100f / u.accN) + "%) · bàn hiện tại" : "");
         tAcc.setVisibility(u.accN > 0 ? View.VISIBLE : View.GONE);
@@ -566,6 +598,30 @@ public class OverlayService extends Service {
             else avatar.play(2);
         }
         root.post(new Runnable() { @Override public void run() { updateRect(); } });
+    }
+
+    private static String shorten(String s, int n) { return s.length() <= n ? s : s.substring(0, n - 1) + "…"; }
+
+    /** Thanh gọn: chữ lớn CÁI/CON khi đã có dự đoán; nếu không thì trạng thái ngắn gọn. */
+    private void updateMini(Tracker.Ui u, boolean showPred) {
+        String big, small;
+        int col;
+        if (showPred) {
+            big = u.pred.v == 'B' ? "CÁI" : "CON";
+            col = u.pred.v == 'B' ? 0xFFFF6B80 : 0xFF7BA9FF;
+            small = "ván #" + u.predN + (u.accN > 0 ? " · đúng " + u.accOk + "/" + u.accN : "");
+        } else if ("result".equals(u.phase)) {
+            big = "win".equals(u.res) ? "✓ ĐÚNG" : "lose".equals(u.res) ? "✗ SAI" : shorten(u.title.replace("Ván ", "V"), 14);
+            col = "win".equals(u.res) ? 0xFF3ECF72 : "lose".equals(u.res) ? 0xFFFF4D5E : Color.WHITE;
+            small = shorten(u.sub, 30);
+        } else {
+            big = shorten(u.title, 18);
+            col = Color.WHITE;
+            small = shorten(u.sub, 34);
+        }
+        tMini.setText(big);
+        tMini.setTextColor(col);
+        tMiniSub.setText(small);
     }
 
     // ---------- xem lại các bàn đã học ----------

@@ -4,6 +4,11 @@ package com.demo.baccarat;
 final class Theme {
     private Theme() {}
 
+    /** Hệ số thu nhỏ kích thước giao diện (điện thoại màn hình nhỏ) và cỡ chữ. */
+    static float scale = 1f, fscale = 1f;
+
+    static float d(android.content.Context c) { return c.getResources().getDisplayMetrics().density * scale; }
+
     static final int IDLE = 0, SCAN = 1, ANALYZE = 2, BANKER = 3, PLAYER = 4, WIN = 5, LOSE = 6, NOTICE = 7;
 
     static final int[] ACC = {0xFF8B7BFF, 0xFF34D1FF, 0xFFFFD34D, 0xFFFF4D6D, 0xFF4D8DFF, 0xFF3ECF72, 0xFFFF4D5E, 0xFFFFD34D};

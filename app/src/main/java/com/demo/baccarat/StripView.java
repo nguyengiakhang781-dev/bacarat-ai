@@ -22,7 +22,7 @@ final class StripView extends View {
 
     StripView(Context c) {
         super(c);
-        d = c.getResources().getDisplayMetrics().density;
+        d = Theme.d(c);
         ok.setColor(0xFF3ECF72); no.setColor(0xFFFF4D5E);
         tx.setColor(0xFFFFD34D); tx.setTextSize(11f * d); tx.setTypeface(Typeface.DEFAULT_BOLD);
     }

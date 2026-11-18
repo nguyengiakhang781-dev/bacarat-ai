@@ -18,7 +18,7 @@ final class SegView extends View {
 
     SegView(Context c) {
         super(c);
-        d = c.getResources().getDisplayMetrics().density;
+        d = Theme.d(c);
         off.setColor(0x24FFFFFF);
     }
 

@@ -19,6 +19,15 @@ CÁCH DÙNG TRÊN ĐIỆN THOẠI
    3. Mở game baccarat, bấm "Bắt đầu xem màn hình" ở trợ lý nổi (kéo avatar để đổi chỗ).
    4. Dừng: bấm "Dừng". Tắt hẳn: bấm "Thoát trợ lý".
 
+BẢN 1.4: SỬA LỖI TRÊN ĐIỆN THOẠI
+   - Giao diện gọn hơn (nhỏ hơn khoảng 20%); bấm "Bắt đầu xem màn hình" thì tự thu về thanh gọn gồm avatar và chữ CÁI/CON,
+     chạm avatar để mở rộng/thu nhỏ. Vùng của trợ lý khít với phần nhìn thấy, không còn vùng trong suốt chặn cảm ứng game.
+   - Sửa lỗi bộ đọc "bám nhầm" nhóm chấm sai (kể cả các chấm tròn của chính giao diện) và không thoát ra được;
+     chỉ nhận nhóm chấm có dạng bảng cầu; vị trí lần trước chỉ là ưu tiên nhẹ.
+   - Chỉ bắt đầu theo dõi khi bảng cầu có ≥ 8 ván; chỉ đổi bàn khi lệch liên tục 3 lần đọc.
+   - Chỉ chấm đúng/sai khi có 1-2 ván mới; bỏ lỡ nhiều ván cùng lúc thì không chấm để khỏi ra kết quả sai.
+   - Ván Hòa ở ô kế tiếp chỉ nhận chấm xanh thuần (không còn "ván ma").
+
 BẢN 1.3: PHÂN TÍCH SÂU (trong bảng "📚 Xem các bàn đã học" bấm "🔬 Phân tích sâu")
    - Xác suất thật mỗi ván (Cái 45,86% · Con 44,62% · Hòa 9,52%) và kỳ vọng âm của từng cửa cược.
    - Kiểm định ngẫu nhiên có hiệu chỉnh khi thử nhiều phương án; bảng chấm điểm từng phương án cầu.
