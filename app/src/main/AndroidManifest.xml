@@ -10,7 +10,7 @@
         android:allowBackup="false"
         android:icon="@drawable/avatar"
         android:label="Trợ lý Baccarat"
-        android:theme="@android:style/Theme.Material.NoActionBar">
+        android:theme="@style/Quiet">
 
         <activity
             android:name=".MainActivity"

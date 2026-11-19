@@ -17,6 +17,8 @@ import android.widget.Toast;
 
 public class MainActivity extends Activity {
     private static final int REQ_CAPTURE = 1001, REQ_NOTIF = 1002;
+    private TextView info, status;
+    private Button go;
 
     @Override
     protected void onCreate(Bundle b) {
@@ -36,22 +38,37 @@ public class MainActivity extends Activity {
         title.setGravity(Gravity.CENTER);
         box.addView(title);
 
-        TextView info = new TextView(this);
+        info = new TextView(this);
         info.setText("1. Cho phép \"Hiển thị trên các ứng dụng khác\"\n2. Cho phép quay màn hình\n3. Mở game, bấm \"Bắt đầu xem màn hình\" ở trợ lý nổi.\n\nMọi kết quả dự đoán chỉ mang tính demo.");
         info.setTextSize(14);
         info.setTextColor(0xCCFFFFFF);
         info.setPadding(0, (int) (16 * d), 0, (int) (24 * d));
         box.addView(info);
 
-        Button go = new Button(this);
-        go.setText("Bật trợ lý");
+        status = new TextView(this);
+        status.setTextSize(13);
+        status.setTextColor(0xFFFFD34D);
+        status.setPadding(0, 0, 0, (int) (16 * d));
+        box.addView(status);
+
+        go = new Button(this);
         go.setAllCaps(false);
-        go.setOnClickListener(v -> begin());
+        go.setOnClickListener(v -> { if (OverlayService.running) stopService(new Intent(this, OverlayService.class)); else begin(); refresh(); });
         box.addView(go);
         setContentView(box);
     }
 
+    @Override protected void onResume() { super.onResume(); refresh(); }
+
+    private void refresh() {
+        String err = CrashLog.last(this);
+        go.setText(OverlayService.running ? "Tắt trợ lý" : "Bật trợ lý");
+        if (OverlayService.running) status.setText("✅ Trợ lý đang chạy. Bấm nút Home rồi mở game; trợ lý nổi sẽ hiện ra.");
+        else status.setText(err.isEmpty() ? "" : "⚠ Lần chạy trước bị lỗi: " + err + "\n(chụp màn hình dòng này gửi người hỗ trợ)");
+    }
+
     private void begin() {
+        CrashLog.clear(this);
         if (Build.VERSION.SDK_INT >= 33
                 && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, REQ_NOTIF);
@@ -74,7 +91,8 @@ public class MainActivity extends Activity {
             s.putExtra("code", resultCode);
             s.putExtra("data", data);
             startForegroundService(s);
-            moveTaskToBack(true);
+            // KHÔNG tự thu app xuống nền (moveTaskToBack): làm kẹt hiệu ứng mở/đóng app trên một số máy, khiến cả màn hình không chạm được
+            status.postDelayed(new Runnable() { @Override public void run() { refresh(); } }, 600);
         } else {
             Toast.makeText(this, "Chưa được cấp quyền quay màn hình", Toast.LENGTH_SHORT).show();
         }

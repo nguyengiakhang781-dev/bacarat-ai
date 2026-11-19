@@ -44,6 +44,8 @@ import java.util.Locale;
 /** Trợ lý nổi: quay màn hình (MediaProjection), đọc bảng cầu, dự đoán; giao diện có nhân vật hoạt hình. */
 public class OverlayService extends Service {
     private static final String CH = "bca_channel";
+    /** Trợ lý có đang chạy không (để MainActivity hiện nút Bật/Tắt đúng). */
+    static volatile boolean running = false;
 
     private WindowManager wm;
     private FrameLayout root;
@@ -81,6 +83,7 @@ public class OverlayService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+        CrashLog.install(getApplicationContext());
         Theme.scale = 0.8f;
         Theme.fscale = 0.9f;
         wm = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
@@ -94,6 +97,18 @@ public class OverlayService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent == null || projection != null) return START_NOT_STICKY;
+        try {
+            return startAssistant(intent);
+        } catch (Throwable e) {
+            CrashLog.save(getApplicationContext(), e);
+            android.widget.Toast.makeText(this, "Trợ lý bị lỗi: " + e.getClass().getSimpleName() + " - " + e.getMessage(), android.widget.Toast.LENGTH_LONG).show();
+            stopSelf();
+            return START_NOT_STICKY;
+        }
+    }
+
+    @SuppressWarnings("deprecation")
+    private int startAssistant(Intent intent) {
         startAsForeground();
         int code = intent.getIntExtra("code", 0);
         Intent data = intent.getParcelableExtra("data");
@@ -112,6 +127,7 @@ public class OverlayService extends Service {
         tracker = new Tracker(new PrefsStore(this));
         buildOverlay();
         render();
+        running = true;
         return START_NOT_STICKY;
     }
 
@@ -734,6 +750,7 @@ public class OverlayService extends Service {
 
     @Override
     public void onDestroy() {
+        running = false;
         watching = false;
         if (vh != null) vh.removeCallbacksAndMessages(null);
         closeHistory();

@@ -19,6 +19,12 @@ CÁCH DÙNG TRÊN ĐIỆN THOẠI
    3. Mở game baccarat, bấm "Bắt đầu xem màn hình" ở trợ lý nổi (kéo avatar để đổi chỗ).
    4. Dừng: bấm "Dừng". Tắt hẳn: bấm "Thoát trợ lý".
 
+BẢN 1.5: SỬA LỖI KẸT MÀN HÌNH KHI BẬT TRỢ LÝ
+   - Không còn tự thu app xuống nền sau khi cấp quyền (làm kẹt hiệu ứng mở/đóng app trên một số máy,
+     khiến cả màn hình không chạm được). Sau khi bật, tự bấm nút Home rồi mở game.
+   - Trong app có nút Bật/Tắt trợ lý và dòng trạng thái. Nếu tool bị lỗi, dòng lỗi hiện ngay trong app để chụp gửi lại.
+   - Không dùng hiệu ứng chuyển cảnh cho app.
+
 BẢN 1.4: SỬA LỖI TRÊN ĐIỆN THOẠI
    - Giao diện gọn hơn (nhỏ hơn khoảng 20%); bấm "Bắt đầu xem màn hình" thì tự thu về thanh gọn gồm avatar và chữ CÁI/CON,
      chạm avatar để mở rộng/thu nhỏ. Vùng của trợ lý khít với phần nhìn thấy, không còn vùng trong suốt chặn cảm ứng game.
